@@ -64,7 +64,7 @@ pub fn build(b: *std.Build) void {
 
     const copy_cmd = b.addSystemCommand(&.{
         "sh", "-c",
-        "cat src/main.zig | powershell.exe -command \"Set-Clipboard\"",
+        "cat src/main.zig | clip.exe",
     });
     const copy_step = b.step("copy", "Copy src/main.zig to clipboard");
     copy_step.dependOn(&copy_cmd.step);
