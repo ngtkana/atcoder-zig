@@ -7,9 +7,30 @@ comptime {
         @compileError("Zig 0.15.1 required");
 }
 
+const ClipboardCmds = switch (builtin.os.tag) {
+    .macos => struct {
+        const get = "pbpaste";
+        const put = "cat src/main.zig | pbcopy";
+        const pipe_to_binary = "pbpaste | ./zig-out/bin/judge";
+    },
+    .windows => struct {
+        const get = "powershell.exe -command \"Get-Clipboard\"";
+        const put = "cat src/main.zig | clip.exe";
+        const pipe_to_binary = "powershell.exe -command \"Get-Clipboard\" | tr -d '\\r' | ./zig-out/bin/judge";
+    },
+    .linux => struct {
+        const get = "xclip -o -selection clipboard";
+        const put = "cat src/main.zig | xclip -i -selection clipboard";
+        const pipe_to_binary = "xclip -o -selection clipboard | ./zig-out/bin/judge";
+    },
+    else => @compileError("Unsupported OS"),
+};
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
+    // ===== Executable =====
     const exe_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
@@ -22,6 +43,7 @@ pub fn build(b: *std.Build) void {
     });
     b.installArtifact(exe);
 
+    // ===== Library Dependencies =====
     const ac_library = b.dependency("ac-library", .{
         .target = target,
         .optimize = optimize,
@@ -46,39 +68,27 @@ pub fn build(b: *std.Build) void {
     });
     exe_mod.addImport("mvzr", mvzr.module("mvzr"));
 
+    // ===== Build Steps =====
+
+    // `zig build run` — Build and run
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
     const run_step = b.step("run", "Build and run");
     run_step.dependOn(&run_cmd.step);
 
-    const run_clip_cmd_str = switch (builtin.os.tag) {
-        .macos => "pbpaste | ./zig-out/bin/judge",
-        .windows => "powershell.exe -command \"Get-Clipboard\" | tr -d '\\r' | ./zig-out/bin/judge",
-        .linux => "xclip -o -selection clipboard | ./zig-out/bin/judge",
-        else => @compileError("Unsupported OS for run-clip"),
-    };
-    const run_clip_cmd = b.addSystemCommand(&.{ "sh", "-c", run_clip_cmd_str });
+    // `zig build run-clip` — Build and run with clipboard as stdin
+    const run_clip_cmd = b.addSystemCommand(&.{ "sh", "-c", ClipboardCmds.pipe_to_binary });
     run_clip_cmd.step.dependOn(b.getInstallStep());
     const run_clip_step = b.step("run-clip", "Build and run with clipboard as stdin");
     run_clip_step.dependOn(&run_clip_cmd.step);
 
-    const clip_cmd_str = switch (builtin.os.tag) {
-        .macos => "pbpaste",
-        .windows => "powershell.exe -command \"Get-Clipboard\"",
-        .linux => "xclip -o -selection clipboard",
-        else => @compileError("Unsupported OS for clip"),
-    };
-    const clip_cmd = b.addSystemCommand(&.{ "sh", "-c", clip_cmd_str });
+    // `zig build clip` — Show clipboard content
+    const clip_cmd = b.addSystemCommand(&.{ "sh", "-c", ClipboardCmds.get });
     const clip_step = b.step("clip", "Show clipboard content");
     clip_step.dependOn(&clip_cmd.step);
 
-    const copy_cmd_str = switch (builtin.os.tag) {
-        .macos => "cat src/main.zig | pbcopy",
-        .windows => "cat src/main.zig | clip.exe",
-        .linux => "cat src/main.zig | xclip -i -selection clipboard",
-        else => @compileError("Unsupported OS for copy"),
-    };
-    const copy_cmd = b.addSystemCommand(&.{ "sh", "-c", copy_cmd_str });
+    // `zig build copy` — Copy src/main.zig to clipboard
+    const copy_cmd = b.addSystemCommand(&.{ "sh", "-c", ClipboardCmds.put });
     const copy_step = b.step("copy", "Copy src/main.zig to clipboard");
     copy_step.dependOn(&copy_cmd.step);
 }
