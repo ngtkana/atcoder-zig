@@ -77,6 +77,9 @@ const libfmt = struct {
                             else => {},
                         }
                     },
+                    .array => {
+                        return try fmtByFor(value[0..], writer);
+                    },
                     .@"struct" => {
                         inline for (type_info.@"struct".fields) |field| {
                             if (std.mem.eql(u8, field.name, "items") and
