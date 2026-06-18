@@ -76,19 +76,19 @@ pub fn build(b: *std.Build) void {
     const run_step = b.step("run", "Build and run");
     run_step.dependOn(&run_cmd.step);
 
-    // `zig build run-clip` — Build and run with clipboard as stdin
-    const run_clip_cmd = b.addSystemCommand(&.{ "sh", "-c", ClipboardCmds.pipe_to_binary });
-    run_clip_cmd.step.dependOn(b.getInstallStep());
-    const run_clip_step = b.step("run-clip", "Build and run with clipboard as stdin");
-    run_clip_step.dependOn(&run_clip_cmd.step);
+    // `zig build run-from-clipboard` — Build and run with clipboard as stdin
+    const run_from_clipboard_cmd = b.addSystemCommand(&.{ "sh", "-c", ClipboardCmds.pipe_to_binary });
+    run_from_clipboard_cmd.step.dependOn(b.getInstallStep());
+    const run_from_clipboard_step = b.step("run-from-clipboard", "Build and run with clipboard as stdin");
+    run_from_clipboard_step.dependOn(&run_from_clipboard_cmd.step);
 
-    // `zig build clip` — Show clipboard content
-    const clip_cmd = b.addSystemCommand(&.{ "sh", "-c", ClipboardCmds.get });
-    const clip_step = b.step("clip", "Show clipboard content");
-    clip_step.dependOn(&clip_cmd.step);
+    // `zig build show-clipboard` — Show clipboard content
+    const show_clipboard_cmd = b.addSystemCommand(&.{ "sh", "-c", ClipboardCmds.get });
+    const show_clipboard_step = b.step("show-clipboard", "Show clipboard content");
+    show_clipboard_step.dependOn(&show_clipboard_cmd.step);
 
-    // `zig build copy` — Copy src/main.zig to clipboard
-    const copy_cmd = b.addSystemCommand(&.{ "sh", "-c", ClipboardCmds.put });
-    const copy_step = b.step("copy", "Copy src/main.zig to clipboard");
-    copy_step.dependOn(&copy_cmd.step);
+    // `zig build copy-to-clipboard` — Copy src/main.zig to clipboard
+    const copy_to_clipboard_cmd = b.addSystemCommand(&.{ "sh", "-c", ClipboardCmds.put });
+    const copy_to_clipboard_step = b.step("copy-to-clipboard", "Copy src/main.zig to clipboard");
+    copy_to_clipboard_step.dependOn(&copy_to_clipboard_cmd.step);
 }
