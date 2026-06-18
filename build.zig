@@ -1,7 +1,8 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 comptime {
-    const v = @import("builtin").zig_version;
+    const v = builtin.zig_version;
     if (v.major != 0 or v.minor != 15 or v.patch != 1)
         @compileError("Zig 0.15.1 required");
 }
@@ -50,22 +51,34 @@ pub fn build(b: *std.Build) void {
     const run_step = b.step("run", "Build and run");
     run_step.dependOn(&run_cmd.step);
 
-    const run_clip_cmd = b.addSystemCommand(&.{
-        "sh", "-c",
-        "powershell.exe -command \"Get-Clipboard\" | tr -d '\\r' | ./zig-out/bin/judge",
-    });
+    const run_clip_cmd_str = switch (builtin.os.tag) {
+        .macos => "pbpaste | ./zig-out/bin/judge",
+        .windows => "powershell.exe -command \"Get-Clipboard\" | tr -d '\\r' | ./zig-out/bin/judge",
+        .linux => "xclip -o -selection clipboard | ./zig-out/bin/judge",
+        else => @compileError("Unsupported OS for run-clip"),
+    };
+    const run_clip_cmd = b.addSystemCommand(&.{ "sh", "-c", run_clip_cmd_str });
     run_clip_cmd.step.dependOn(b.getInstallStep());
     const run_clip_step = b.step("run-clip", "Build and run with clipboard as stdin");
     run_clip_step.dependOn(&run_clip_cmd.step);
 
-    const clip_cmd = b.addSystemCommand(&.{ "powershell.exe", "-command", "Get-Clipboard" });
+    const clip_cmd_str = switch (builtin.os.tag) {
+        .macos => "pbpaste",
+        .windows => "powershell.exe -command \"Get-Clipboard\"",
+        .linux => "xclip -o -selection clipboard",
+        else => @compileError("Unsupported OS for clip"),
+    };
+    const clip_cmd = b.addSystemCommand(&.{ "sh", "-c", clip_cmd_str });
     const clip_step = b.step("clip", "Show clipboard content");
     clip_step.dependOn(&clip_cmd.step);
 
-    const copy_cmd = b.addSystemCommand(&.{
-        "sh", "-c",
-        "cat src/main.zig | clip.exe",
-    });
+    const copy_cmd_str = switch (builtin.os.tag) {
+        .macos => "cat src/main.zig | pbcopy",
+        .windows => "cat src/main.zig | clip.exe",
+        .linux => "cat src/main.zig | xclip -i -selection clipboard",
+        else => @compileError("Unsupported OS for copy"),
+    };
+    const copy_cmd = b.addSystemCommand(&.{ "sh", "-c", copy_cmd_str });
     const copy_step = b.step("copy", "Copy src/main.zig to clipboard");
     copy_step.dependOn(&copy_cmd.step);
 }
