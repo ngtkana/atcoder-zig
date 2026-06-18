@@ -1,37 +1,33 @@
 const std = @import("std");
 const nextInt = libio.nextInt;
+const nextIntArray = libio.nextIntArray;
 const print = libio.print;
 const dbg = libfmt.dbg;
-
-const Item = struct {
-    c: usize,
-    v: u64,
-};
 
 pub fn main() !void {
     try libio.init();
     defer libio.deinit();
 
     const n = try nextInt(usize);
-    const k = try nextInt(usize);
     const m = try nextInt(usize);
 
-    const a = try libio.alloc.alloc(u64, 2 * n);
-    @memset(a, 0);
-    for (0..n) |i| {
-        const c = try nextInt(usize) - 1;
-        var v = try nextInt(u64);
-        if (a[c] < v) {
-            std.mem.swap(u64, &a[c], &v);
-        }
-        a[n + i] = v;
-    }
-    std.mem.sortUnstable(u64, a[0..n], {}, std.sort.desc(u64));
-    std.mem.sortUnstable(u64, a[m .. 2 * n], {}, std.sort.desc(u64));
+    // 2 * a >= b
+    const a = try nextIntArray(u32, n);
+    const b = try nextIntArray(u32, m);
+    std.mem.sortUnstable(u32, a, {}, std.sort.asc(u32));
+    std.mem.sortUnstable(u32, b, {}, std.sort.asc(u32));
 
-    var ans: u64 = 0;
-    for (a[0..k]) |item| {
-        ans += item;
+    var ans: usize = 0;
+    var i: usize = 0;
+    for (0..m) |j| {
+        while (i < n and 2 * a[i] < b[j]) {
+            i += 1;
+        }
+        if (i == n) {
+            break;
+        }
+        ans += 1;
+        i += 1;
     }
     try print("{d}", .{ans});
 }
@@ -39,14 +35,14 @@ pub fn main() !void {
 // {{{ libfmt: デバッグ出力のフォーマットでございます👆️
 const libfmt = struct {
     fn dbg(value: anytype) void {
-        std.debug.print("{f}\n", .{fmtArray(value)});
+        std.debug.print("{f}\n", .{fmtDbg(value)});
     }
 
-    fn fmtArray(value: anytype) FmtArray(@TypeOf(value)) {
+    fn fmtDbg(value: anytype) FmtDbg(@TypeOf(value)) {
         return .{ .value = value };
     }
 
-    fn fmtByFor(value: anytype, writer: anytype) !void {
+    fn fmtIter(value: anytype, writer: anytype) !void {
         try writer.writeAll("[");
         var is_head = true;
         for (value) |item| {
@@ -55,12 +51,12 @@ const libfmt = struct {
             } else {
                 try writer.writeAll(", ");
             }
-            try writer.print("{f}", .{fmtArray(item)});
+            try writer.print("{f}", .{fmtDbg(item)});
         }
         try writer.writeAll("]");
     }
 
-    fn FmtArray(comptime T: type) type {
+    fn FmtDbg(comptime T: type) type {
         return struct {
             value: T,
 
@@ -73,19 +69,19 @@ const libfmt = struct {
                 switch (type_info) {
                     .pointer => {
                         switch (type_info.pointer.size) {
-                            .slice => return try fmtByFor(value, writer),
+                            .slice => return try fmtIter(value, writer),
                             else => {},
                         }
                     },
                     .array => {
-                        return try fmtByFor(value[0..], writer);
+                        return try fmtIter(value[0..], writer);
                     },
                     .@"struct" => {
                         inline for (type_info.@"struct".fields) |field| {
                             if (std.mem.eql(u8, field.name, "items") and
                                 @typeInfo(field.type) == .pointer and @typeInfo(field.type).pointer.size == .slice)
                             {
-                                return try fmtByFor(value.items, writer);
+                                return try fmtIter(value.items, writer);
                             }
                         }
                     },
@@ -117,6 +113,14 @@ const libio = struct {
 
     fn nextInt(comptime T: type) !T {
         return std.fmt.parseInt(T, input_tokens.next().?, 10);
+    }
+
+    fn nextIntArray(comptime T: type, size: usize) ![]T {
+        const result = try alloc.alloc(T, size);
+        for (result) |*item| {
+            item.* = try std.fmt.parseInt(T, input_tokens.next().?, 10);
+        }
+        return result;
     }
 
     fn init() !void {
