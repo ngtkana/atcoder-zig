@@ -1,0 +1,138 @@
+# SPDX-License-Identifier: CC0-1.0
+language = 'Zig'
+display = 'Zig (Zig 0.15.1)'
+license = [
+    { name = 'MIT', url = 'https://github.com/ziglang/zig/blob/master/LICENSE' },
+]
+
+library.ac-library-zig = { license = [
+    { name = 'CC0-1.0', url = 'https://github.com/Ryoga-exe/ac-library-zig/blob/main/LICENSE' },
+], version = 'v0.4.0' }
+library.proconio-zig = { license = [
+    { name = 'MIT', url = 'https://github.com/Ryoga-exe/proconio-zig/blob/main/LICENSE' },
+], version = 'v0.3.0' }
+library.zig-string = { license = [
+    { name = 'MIT', url = 'https://github.com/JakubSzark/zig-string/blob/master/LICENSE' },
+], version = 'f6f9e5dc7c5c45a72473de245a0e6958ef2bf913' }
+library.mvzr = { license = [
+    { name = 'MIT', url = 'https://github.com/mnemnion/mvzr/blob/trunk/LICENSE' },
+], version = 'v0.3.6' }
+
+filename = 'src/main.zig'
+
+install = '''
+AC_ZIG_VERSION=0.15.1
+sudo apt-get update
+sudo apt-get install -y --no-install-recommends git
+pushd /tmp
+wget -q https://ziglang.org/download/${AC_ZIG_VERSION}/zig-x86_64-linux-${AC_ZIG_VERSION}.tar.xz
+sudo tar -C /opt -xf zig-x86_64-linux-${AC_ZIG_VERSION}.tar.xz
+sudo ln -s /opt/zig-x86_64-linux-${AC_ZIG_VERSION}/zig /usr/local/bin/zig
+popd
+
+# Create Project
+zig init
+rm src/root.zig
+
+# Install Libraries
+zig fetch --save=ac-library git+https://github.com/Ryoga-exe/ac-library-zig#v0.4.0
+
+zig fetch --save=proconio git+https://github.com/Ryoga-exe/proconio-zig#v0.3.0
+
+pushd /tmp
+
+# zig fetch --save=string git+https://github.com/JakubSzark/zig-string#f6f9e5dc7c5c45a72473de245a0e6958ef2bf913
+# PR to fix build issue is not merged and patch manually
+git clone https://github.com/JakubSzark/zig-string
+wget -nv -O string.patch https://github.com/JakubSzark/zig-string/pull/55.patch
+pushd zig-string
+git checkout f6f9e5dc7c5c45a72473de245a0e6958ef2bf913
+patch -p1 < ../string.patch
+popd
+
+# zig fetch --save=mvzr git+https://github.com/mnemnion/mvzr#v0.3.6
+# PR to fix build issue is not merged and patch manually
+git clone https://github.com/mnemnion/mvzr
+wget -nv -O mvzr.patch https://github.com/mnemnion/mvzr/pull/10.patch
+pushd mvzr
+git checkout v0.3.6
+patch -p1 < ../mvzr.patch
+popd
+
+popd
+
+zig fetch --save=string /tmp/zig-string
+zig fetch --save=mvzr /tmp/mvzr
+
+cat << EOF > build.zig
+const std = @import("std");
+
+pub fn build(b: *std.Build) void {
+    const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+    const exe_mod = b.createModule(.{
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const exe = b.addExecutable(.{
+        .name = "judge",
+        .root_module = exe_mod,
+    });
+    b.installArtifact(exe);
+
+    const ac_library = b.dependency("ac-library", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    exe_mod.addImport("ac-library", ac_library.module("ac-library"));
+
+    const proconio = b.dependency("proconio", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    exe_mod.addImport("proconio", proconio.module("proconio"));
+
+    const string = b.dependency("string", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    exe_mod.addImport("string", string.module("string"));
+
+    const mvzr = b.dependency("mvzr", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    exe_mod.addImport("mvzr", mvzr.module("mvzr"));
+
+}
+EOF
+
+cat << 'EOF' > src/main.zig
+const std = @import("std");
+const ac = @import("ac-library");
+
+pub fn main() !void {
+    const allocator = std.heap.page_allocator;
+    var d = try ac.Dsu.init(allocator, 10);
+    defer d.deinit();
+    _ = d.merge(0, 1);
+    try std.testing.expect(d.same(0, 1));
+    _ = d.merge(1, 5);
+    var g = try d.groups();
+    std.debug.print("{any}\n", .{g.get(0)});
+}
+EOF
+zig build --release -Doptimize=ReleaseFast
+./zig-out/bin/judge
+rm zig-out/bin/judge
+'''
+
+compile = '''
+zig build --release -Doptimize=ReleaseFast
+'''
+
+object = 'zig-out/bin/judge'
+
+execution = ['./zig-out/bin/judge']
