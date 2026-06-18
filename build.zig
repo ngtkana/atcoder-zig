@@ -58,7 +58,14 @@ pub fn build(b: *std.Build) void {
     const run_clip_step = b.step("run-clip", "Build and run with clipboard as stdin");
     run_clip_step.dependOn(&run_clip_cmd.step);
 
-    const show_cmd = b.addSystemCommand(&.{ "powershell.exe", "-command", "Get-Clipboard" });
-    const show_step = b.step("show", "Show clipboard content");
-    show_step.dependOn(&show_cmd.step);
+    const clip_cmd = b.addSystemCommand(&.{ "powershell.exe", "-command", "Get-Clipboard" });
+    const clip_step = b.step("clip", "Show clipboard content");
+    clip_step.dependOn(&clip_cmd.step);
+
+    const copy_cmd = b.addSystemCommand(&.{
+        "sh", "-c",
+        "cat src/main.zig | powershell.exe -command \"Set-Clipboard\"",
+    });
+    const copy_step = b.step("copy", "Copy src/main.zig to clipboard");
+    copy_step.dependOn(&copy_cmd.step);
 }
