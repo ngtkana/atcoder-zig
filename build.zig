@@ -7,22 +7,20 @@ comptime {
         @compileError("Zig 0.15.1 required");
 }
 
-const section_header = "\\033[1;36m─── CLIPBOARD ───\\033[0m";
-
 const ClipboardCmds = switch (builtin.os.tag) {
     .macos => struct {
-        const get = "printf '" ++ section_header ++ "\\n' && pbpaste";
-        const put = "cat src/main.zig | pbcopy && printf '\\033[1;32mCopied to clipboard\\033[0m\\n'";
+        const get = "pbpaste";
+        const put = "cat src/main.zig | pbcopy";
         const pipe_to_binary = "pbpaste | ./zig-out/bin/judge";
     },
     .windows => struct {
-        const get = "printf '" ++ section_header ++ "\\n' && powershell.exe -command \"Get-Clipboard\"";
-        const put = "cat src/main.zig | clip.exe && printf '\\033[1;32mCopied to clipboard\\033[0m\\n'";
+        const get = "powershell.exe -command \"Get-Clipboard\"";
+        const put = "cat src/main.zig | clip.exe";
         const pipe_to_binary = "powershell.exe -command \"Get-Clipboard\" | tr -d '\\r' | ./zig-out/bin/judge";
     },
     .linux => struct {
-        const get = "printf '" ++ section_header ++ "\\n' && xclip -o -selection clipboard";
-        const put = "cat src/main.zig | xclip -i -selection clipboard && printf '\\033[1;32mCopied to clipboard\\033[0m\\n'";
+        const get = "xclip -o -selection clipboard";
+        const put = "cat src/main.zig | xclip -i -selection clipboard";
         const pipe_to_binary = "xclip -o -selection clipboard | ./zig-out/bin/judge";
     },
     else => @compileError("Unsupported OS"),
