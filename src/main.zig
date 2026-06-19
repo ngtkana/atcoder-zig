@@ -1,4 +1,7 @@
 const std = @import("std");
+const expect = std.testing.expect;
+const eql = std.mem.eql;
+const test_allocator = std.testing.allocator;
 
 pub fn main() !void {
     try libio.init();
@@ -24,7 +27,7 @@ const libio = struct {
     var input_tokens: std.mem.TokenIterator(u8, .any) = undefined;
 
     fn dbg(value: anytype) void {
-        std.debug.print("{any}\n", value);
+        std.debug.print("{f}\n", .{value});
     }
 
     fn nextToken() ![]const u8 {
