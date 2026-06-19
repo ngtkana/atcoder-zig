@@ -1,98 +1,10 @@
 const std = @import("std");
-const nextInt = libio.nextInt;
-const nextIntArray = libio.nextIntArray;
-const print = libio.print;
-const dbg = libfmt.dbg;
 
 pub fn main() !void {
     try libio.init();
     defer libio.deinit();
-
-    const n = try nextInt(usize);
-    const m = try nextInt(usize);
-
-    // 2 * a >= b
-    const a = try nextIntArray(u32, n);
-    const b = try nextIntArray(u32, m);
-    std.mem.sortUnstable(u32, a, {}, std.sort.asc(u32));
-    std.mem.sortUnstable(u32, b, {}, std.sort.asc(u32));
-
-    var ans: usize = 0;
-    var i: usize = 0;
-    for (0..m) |j| {
-        while (i < n and 2 * a[i] < b[j]) {
-            i += 1;
-        }
-        if (i == n) {
-            break;
-        }
-        ans += 1;
-        i += 1;
-    }
-    try print("{d}", .{ans});
 }
 
-// {{{ libfmt: デバッグ出力のフォーマットでございます👆️
-const libfmt = struct {
-    fn dbg(value: anytype) void {
-        std.debug.print("{f}\n", .{fmtDbg(value)});
-    }
-
-    fn fmtDbg(value: anytype) FmtDbg(@TypeOf(value)) {
-        return .{ .value = value };
-    }
-
-    fn fmtIter(value: anytype, writer: anytype) !void {
-        try writer.writeAll("[");
-        var is_head = true;
-        for (value) |item| {
-            if (is_head) {
-                is_head = false;
-            } else {
-                try writer.writeAll(", ");
-            }
-            try writer.print("{f}", .{fmtDbg(item)});
-        }
-        try writer.writeAll("]");
-    }
-
-    fn FmtDbg(comptime T: type) type {
-        return struct {
-            value: T,
-
-            pub fn format(
-                self: @This(),
-                writer: anytype,
-            ) !void {
-                const value = self.value;
-                const type_info = @typeInfo(T);
-                switch (type_info) {
-                    .pointer => {
-                        switch (type_info.pointer.size) {
-                            .slice => return try fmtIter(value, writer),
-                            else => {},
-                        }
-                    },
-                    .array => {
-                        return try fmtIter(value[0..], writer);
-                    },
-                    .@"struct" => {
-                        inline for (type_info.@"struct".fields) |field| {
-                            if (std.mem.eql(u8, field.name, "items") and
-                                @typeInfo(field.type) == .pointer and @typeInfo(field.type).pointer.size == .slice)
-                            {
-                                return try fmtIter(value.items, writer);
-                            }
-                        }
-                    },
-                    else => {},
-                }
-                try writer.print("{any}", .{value});
-            }
-        };
-    }
-};
-// }}}
 // {{{ libio: 標準入出力のコーナーでございます👆️
 const libio = struct {
     const stdin = std.fs.File.stdin();
@@ -108,25 +20,60 @@ const libio = struct {
     }
 
     var arena: std.heap.ArenaAllocator = undefined;
-    var alloc: std.mem.Allocator = undefined;
+    var allocator: std.mem.Allocator = undefined;
     var input_tokens: std.mem.TokenIterator(u8, .any) = undefined;
+
+    fn dbg(value: anytype) void {
+        std.debug.print("{any}\n", value);
+    }
+
+    fn nextToken() ![]const u8 {
+        return input_tokens.next().?;
+    }
 
     fn nextInt(comptime T: type) !T {
         return std.fmt.parseInt(T, input_tokens.next().?, 10);
     }
 
+    fn nextIntPair(comptime T: type, comptime U: type) !struct { T, U } {
+        return .{
+            try nextInt(T),
+            try nextInt(U),
+        };
+    }
+
     fn nextIntArray(comptime T: type, size: usize) ![]T {
-        const result = try alloc.alloc(T, size);
+        const result = try allocator.alloc(T, size);
         for (result) |*item| {
-            item.* = try std.fmt.parseInt(T, input_tokens.next().?, 10);
+            item.* = try nextInt(T);
         }
         return result;
     }
 
+    fn nextIntArrayArray(comptime T: type, size: usize) ![][]T {
+        const result = try allocator.alloc(T, size);
+        for (result) |*item| {
+            item.* = try nextIntArray(T);
+        }
+        return result;
+    }
+
+    fn nextIntPairArray(comptime T: type, comptime U: type, size: usize) ![]struct { T, U } {
+        const result = try allocator.alloc(struct { T, U }, size);
+        for (result) |*item| {
+            item.* = try nextIntPair(T, U);
+        }
+        return result;
+    }
+
+    fn alloc(T: type, len: usize) ![]T {
+        return allocator.alloc(T, len);
+    }
+
     fn init() !void {
         arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-        alloc = arena.allocator();
-        const input_data = try stdin_reader.interface.allocRemaining(alloc, .unlimited);
+        allocator = arena.allocator();
+        const input_data = try stdin_reader.interface.allocRemaining(allocator, .unlimited);
         input_tokens = std.mem.tokenizeAny(u8, input_data, " \t\r\n");
     }
 
