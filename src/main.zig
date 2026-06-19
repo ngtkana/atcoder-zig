@@ -1,15 +1,19 @@
 const std = @import("std");
-const expect = std.testing.expect;
-const eql = std.mem.eql;
-const test_allocator = std.testing.allocator;
 
 pub fn main() !void {
-    try libio.init();
-    defer libio.deinit();
+    try jo.init();
+    defer jo.deinit();
+
+    const a = try jo.nextInt(u4);
+    const b = try jo.nextInt(u4);
+    const c = try jo.nextInt(u4);
+
+    const ans = a != b and b == c;
+    jo.println("{s}", .{if (ans) "Yes" else "No"});
 }
 
-// {{{ libio: 標準入出力のコーナーでございます👆️
-const libio = struct {
+// {{{ jo: 標準入出力のコーナーでございます👆️
+const jo = struct {
     const stdin = std.fs.File.stdin();
     const stdout = std.fs.File.stdout();
 
@@ -17,9 +21,14 @@ const libio = struct {
     var stdin_reader = stdin.reader(&_stdin_buf);
 
     var _stdout_buf: [4096]u8 = undefined;
-    fn print(comptime fmt: []const u8, args: anytype) !void {
-        const output = try std.fmt.bufPrint(&_stdout_buf, fmt, args);
-        try stdout.writeAll(output);
+
+    fn print(comptime fmt: []const u8, args: anytype) void {
+        const output = std.fmt.bufPrint(&_stdout_buf, fmt, args) catch unreachable;
+        stdout.writeAll(output) catch unreachable;
+    }
+
+    fn println(comptime fmt: []const u8, args: anytype) void {
+        print(fmt ++ "\n", args);
     }
 
     var arena: std.heap.ArenaAllocator = undefined;
