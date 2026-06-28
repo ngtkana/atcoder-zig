@@ -1,6 +1,6 @@
 const std = @import("std");
 
-fn FenwickTree(T: type) type {
+pub fn FenwickTree(T: type) type {
     return struct {
         items: []T,
 
