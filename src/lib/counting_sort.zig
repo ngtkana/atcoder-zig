@@ -1,6 +1,14 @@
 const std = @import("std");
 
-pub fn SortConstructTable(
+pub fn project(Context: type, T: type, comptime field_name: []const u8) fn (Context, T) @FieldType(T, field_name) {
+    return struct {
+        pub fn inner(_: Context, item: T) @FieldType(T, field_name) {
+            return @field(item, field_name);
+        }
+    }.inner;
+}
+
+pub fn CountingSortAndTable(
     comptime T: type,
     allocator: std.mem.Allocator,
     items: []T,
